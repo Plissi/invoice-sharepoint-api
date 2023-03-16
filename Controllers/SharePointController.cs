@@ -4,6 +4,8 @@ using System.Net;
 using System.Security;
 using System;
 using System.Text.Json;
+using DechargeAPI.Classes;
+using System.Web.Helpers;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -13,30 +15,13 @@ namespace DechargeAPI.Controllers
     [ApiController]
     public class SharePointController : ControllerBase
     {
-        private string siteUrl;
-        private string spItems;
-        private SharePointOnlineCredentials credentials;
         private HttpClientHandler handler;
-        private Uri uri;
+        private SharePoint sp;
 
         public SharePointController()
         {
-            DotNetEnv.Env.Load();
-
-            siteUrl = Environment.GetEnvironmentVariable("siteUrl");
-            spItems = Environment.GetEnvironmentVariable("endpoint");
-            var username = Environment.GetEnvironmentVariable("username");
-            var password = Environment.GetEnvironmentVariable("password");
-            
-            var securePassword = new SecureString();
-            password.ToCharArray().ToList().ForEach(c => securePassword.AppendChar(c));
-            credentials = new SharePointOnlineCredentials(username, securePassword);
-
-            handler = new HttpClientHandler();
-            handler.Credentials = credentials;
-
-            uri = new Uri(siteUrl);
-            handler.CookieContainer.SetCookies(uri, credentials.GetAuthenticationCookie(uri));
+            sp = new SharePoint();
+            handler = sp.handler;
         }
 
         // GET: api/<SharePointController>
@@ -48,7 +33,8 @@ namespace DechargeAPI.Controllers
             {
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
-                var response = await client.GetAsync(spItems);
+                
+                var response = await client.GetAsync(sp.factureADecharger);
 
                 response.EnsureSuccessStatusCode();
 
@@ -56,15 +42,73 @@ namespace DechargeAPI.Controllers
                 var doc = JsonDocument.Parse(json);
                 JsonElement root = doc.RootElement;
 
-                return root.GetProperty("d").GetProperty("results").ToString();
+                return root.GetProperty("d").ToString(); ;
+            }
+        }
+
+        // GET: api/SharePointController2
+        [Route("/api/[controller]/2")]
+        [HttpGet]
+        public async Task<String> Get2()
+        {
+            var json = string.Empty;
+            using (var client = new HttpClient(handler))
+            {
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
+
+                var response = await client.GetAsync(sp.factureDechargee);
+
+                response.EnsureSuccessStatusCode();
+
+                json = await response.Content.ReadAsStringAsync();
+                var doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+
+                return root.GetProperty("d").ToString();
+            }
+        }
+
+        [Route("/api/digest")]
+        [HttpPost]
+        public async Task<JsonElement> GetDigest()
+        {
+            var json = string.Empty;
+            using (var client = new HttpClient(handler))
+            {
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
+
+                var response = await client.PostAsync(sp.context, null);
+                response.EnsureSuccessStatusCode();
+
+                json = await response.Content.ReadAsStringAsync();
+                var doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+
+                return root.GetProperty("d").GetProperty("GetContextWebInformation").GetProperty("FormDigestValue");
             }
         }
 
         // GET api/<SharePointController>/5
         [HttpGet("{id}")]
-        public string Get(int id)
+        public async Task<JsonElement> GetAsync(int id)
         {
-            return "value";
+            var json = string.Empty;
+            using (var client = new HttpClient(handler))
+            {
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
+                var response = await client.GetAsync(sp.listItems + "(" + id + ")");
+
+                response.EnsureSuccessStatusCode();
+
+                json = await response.Content.ReadAsStringAsync();
+                var doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+
+                return root.GetProperty("d");
+            }
         }
 
         // POST api/<SharePointController>
