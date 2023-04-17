@@ -2,16 +2,12 @@
 
 namespace DechargeAPI.Models
 {
-    public class UserModel
+    public class TestUserModel
     {
         [Required(ErrorMessage ="Nom d'utilisateur requis")]
-        public string Login { get; set; }
+        public string Username { get; set; }
 
         [Required(ErrorMessage = "Mot de passe requis")]
-        public string MotDePasse { get; set; }
-
-        public string CompteInterneId = "45";
-
-        public string SocieteId = "10";
+        public string Password { get; set; }
     }
 }

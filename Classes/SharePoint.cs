@@ -5,8 +5,8 @@ namespace DechargeAPI.Classes
 {
     public class SharePoint
     {
-        public string siteUrl, factureADecharger,factureDechargee, context, listItems, users, context2;
-        public string? site2;
+        public string siteUrl, factureADecharger,factureDechargee, context, listItems, users, testUsers, testContext, attachmentPath;
+        public string? testUrl;
         public SharePointOnlineCredentials credentials;
         public HttpClientHandler handler, handlerAuth;
         public Uri uri;
@@ -20,10 +20,12 @@ namespace DechargeAPI.Classes
             factureDechargee = siteUrl + Environment.GetEnvironmentVariable("endpointFactureDechargee");
             context = siteUrl + Environment.GetEnvironmentVariable("contextInfo");
             listItems = siteUrl + Environment.GetEnvironmentVariable("listItems");
+            users = siteUrl + Environment.GetEnvironmentVariable("usersEndpoint");
 
-            site2 = Environment.GetEnvironmentVariable("site2");
-            users = site2 + Environment.GetEnvironmentVariable("users");
-            context2 = site2 + Environment.GetEnvironmentVariable("contextInfo");
+            testUrl = Environment.GetEnvironmentVariable("testUrl");
+            attachmentPath = testUrl + Environment.GetEnvironmentVariable("userAttachment");
+            testContext = testUrl + Environment.GetEnvironmentVariable("contextInfo");
+            testUsers = testUrl + Environment.GetEnvironmentVariable("testUsersEndpoint");
 
             var username = Environment.GetEnvironmentVariable("username");
             var password = Environment.GetEnvironmentVariable("password");
@@ -41,7 +43,7 @@ namespace DechargeAPI.Classes
             handlerAuth = new HttpClientHandler();
             handlerAuth.Credentials = credentials;
 
-            uri = new Uri(site2);
+            uri = new Uri(testUrl);
             handlerAuth.CookieContainer.SetCookies(uri, credentials.GetAuthenticationCookie(uri));
         }
     }

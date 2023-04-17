@@ -1,11 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.SharePoint.Client;
-using System.Net;
-using System.Security;
-using System;
+﻿using DechargeAPI.Classes;
+using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
-using DechargeAPI.Classes;
-using System.Web.Helpers;
+using System.Text.Json.Nodes;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -25,8 +21,9 @@ namespace DechargeAPI.Controllers
         }
 
         // GET: api/<SharePointController>
+        [Route("GetFactureADecharger")]
         [HttpGet]
-        public async Task<String> Get()
+        public async Task<String> GetFactureADecharger()
         {
             var json = string.Empty;
             using (var client = new HttpClient(handler))
@@ -46,10 +43,9 @@ namespace DechargeAPI.Controllers
             }
         }
 
-        // GET: api/SharePointController2
-        [Route("/api/[controller]/2")]
+        [Route("GetFactureDechargee")]
         [HttpGet]
-        public async Task<String> Get2()
+        public async Task<String> GetFactureDechargee()
         {
             var json = string.Empty;
             using (var client = new HttpClient(handler))
@@ -69,7 +65,7 @@ namespace DechargeAPI.Controllers
             }
         }
 
-        [Route("/api/digest")]
+        [Route("digest")]
         [HttpPost]
         public async Task<JsonElement> GetDigest()
         {
@@ -90,8 +86,7 @@ namespace DechargeAPI.Controllers
             }
         }
 
-        // GET api/<SharePointController>/5
-        [HttpGet("{id}")]
+        [HttpGet("GetById/{id}")]
         public async Task<JsonElement> GetAsync(int id)
         {
             var json = string.Empty;
@@ -108,6 +103,26 @@ namespace DechargeAPI.Controllers
                 JsonElement root = doc.RootElement;
 
                 return root.GetProperty("d");
+            }
+        }
+
+        [HttpGet("GetByCodeClient/{code}")]
+        public async Task<JsonNode> GetAsync(string code)
+        {
+            var json = string.Empty;
+            using (var client = new HttpClient(handler))
+            {
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
+                Console.WriteLine(sp.listItems + "?$filter=startswith(CodeClient,'" + code + "')");
+                var response = await client.GetAsync(sp.listItems + "?$filter=startswith(CodeClient,'" + code + "')&$orderby=Created%20desc");
+
+                //response.EnsureSuccessStatusCode();
+
+                json = await response.Content.ReadAsStringAsync();
+                var doc = JsonArray.Parse(json);
+
+                return doc["d"];
             }
         }
 

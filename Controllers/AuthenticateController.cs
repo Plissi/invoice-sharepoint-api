@@ -1,6 +1,5 @@
 ﻿using DechargeAPI.Classes;
 using DechargeAPI.Models;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
@@ -35,11 +34,13 @@ namespace DechargeAPI.Controllers
 
         [HttpPost]
         [Route("login")]
-        public async Task<IActionResult> Login([FromBody] UserModel model)
+        public async Task<IActionResult> Login([FromBody] TestUserModel model)
         {
-            JsonNode user = await GetAsync(model.Username);
+            JsonNode user = await GetUser(model.Username);
 
-            if (!user.AsArray().IsNullOrEmpty() && VerifyPassword(model.Password, (string)user[0]["Password"], salt))
+            var password = user[0]["Password"];
+
+            if (!user.AsArray().IsNullOrEmpty() && VerifyPassword(model.Password, (string)password, salt))
             {
                 Console.WriteLine("OK");
                  var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Secret"]));
@@ -64,11 +65,13 @@ namespace DechargeAPI.Controllers
 
         }
 
+        /*
         [HttpPost]
         [Route("register")]
         public async Task<ActionResult<UserModel>> Register([FromBody] UserModel model, string digest)
         {
-            model.Password = HashPasword(model.Password, salt);
+            model.MotDePasse = HashPasword(model.MotDePasse, salt);
+
             var json = JsonConvert.SerializeObject(model);
             var data = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -78,7 +81,34 @@ namespace DechargeAPI.Controllers
                 client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
                 client.DefaultRequestHeaders.Add("X-RequestDigest", digest);
 
+                Console.WriteLine(sp.users);
+
                 var response = await client.PostAsync(sp.users, data);
+                response.EnsureSuccessStatusCode();
+
+                return new CreatedResult("", "Utilisateur " + model.Login + " créé");
+            }
+        }
+        */
+
+        [HttpPost]
+        [Route("testRegister")]
+        public async Task<ActionResult<TestUserModel>> TestRegister([FromBody] TestUserModel model, string digest)
+        {
+            model.Password = HashPasword(model.Password, salt);
+
+            var json = JsonConvert.SerializeObject(model);
+            var data = new StringContent(json, Encoding.UTF8, "application/json");
+
+            using (var client = new HttpClient(handler))
+            {
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
+                client.DefaultRequestHeaders.Add("X-RequestDigest", digest);
+
+                Console.WriteLine(sp.testUsers);
+
+                var response = await client.PostAsync(sp.testUsers, data);
                 response.EnsureSuccessStatusCode();
 
                 return new CreatedResult("", "Utilisateur " + model.Username + " créé");
@@ -86,8 +116,8 @@ namespace DechargeAPI.Controllers
         }
 
         [HttpPost]
-        [Route("digest")]
-        public async Task<string> GetDigest()
+        [Route("testDigest")]
+        public async Task<JsonElement> GetTestDigest()
         {
             var json = string.Empty;
             using (var client = new HttpClient(handler))
@@ -95,26 +125,28 @@ namespace DechargeAPI.Controllers
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
 
-                var response = await client.PostAsync(sp.context2, null);
+                var response = await client.PostAsync(sp.testContext, null);
                 response.EnsureSuccessStatusCode();
 
                 json = await response.Content.ReadAsStringAsync();
                 var doc = JsonDocument.Parse(json);
                 JsonElement root = doc.RootElement;
 
-                return root.GetProperty("d").GetProperty("GetContextWebInformation").GetProperty("FormDigestValue").ToString();
+                return root.GetProperty("d").GetProperty("GetContextWebInformation").GetProperty("FormDigestValue");
             }
         }
-
+        
         [HttpGet("{username}")]
-        public async Task<JsonNode> GetAsync(string username)
+        public async Task<JsonNode> GetUser(string username)
         {
             var json = string.Empty;
             using (var client = new HttpClient(handler))
             {
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
-                var response = await client.GetAsync(sp.users + "?$filter=Username eq '" + username + "'");
+                var url = sp.testUsers + "?$filter=Username eq '" + username + "'";
+
+                var response = await client.GetAsync(url);
 
                 response.EnsureSuccessStatusCode();
 
@@ -151,7 +183,7 @@ namespace DechargeAPI.Controllers
         }
 
         [HttpPost("changepass/{id}")]
-        public async Task<IActionResult> ChangePass([FromBody] UserModel user, string digest, int id)
+        public async Task<IActionResult> ChangePass([FromBody] TestUserModel user, string digest, int id)
         {
             user.Password = HashPasword(user.Password, salt);
             var json = JsonConvert.SerializeObject(user);;
@@ -171,6 +203,31 @@ namespace DechargeAPI.Controllers
                 response.EnsureSuccessStatusCode();
 
                 return new CreatedResult("", "Modification(s) effectuée(s)");
+            }
+        }
+
+        [HttpPost("UploadImage/{id}")]
+        public async Task<IActionResult> UploadImage(string digest, string filePath, string fileName, int id, IFormFile imageFile)
+        {
+            var uri = sp.users + "(" + id + ")/AttachmentFiles/ add(FileName='" + imageFile.FileName + "')";
+
+            using (var client = new HttpClient(handler))
+            {
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("X-RequestDigest", digest);
+                Console.WriteLine(imageFile.Name);
+
+                using (var multipartFormContent = new MultipartFormDataContent())
+                {
+                    var fileStream = new StreamContent(imageFile.OpenReadStream());
+                    //Add the file
+                    multipartFormContent.Add(fileStream, name: "DEPOT SCAN", fileName: imageFile.FileName);
+
+                    //Send it
+                    var response = await client.PostAsync(uri, multipartFormContent);
+                    response.EnsureSuccessStatusCode();
+                    return new CreatedResult("", "Décharge ajoutée");
+                }
             }
         }
     }
