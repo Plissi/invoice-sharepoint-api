@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 
 namespace DechargeAPI.Models
 {
@@ -9,5 +10,8 @@ namespace DechargeAPI.Models
 
         [Required(ErrorMessage = "Mot de passe requis")]
         public string Password { get; set; }
+
+        [DefaultValue("3")]
+        public string SocieteId { get; set; }
     }
 }
