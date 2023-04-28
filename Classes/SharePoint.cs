@@ -27,7 +27,7 @@ namespace DechargeAPI.Classes
             testContext = testUrl + Environment.GetEnvironmentVariable("contextInfo");
             testUsers = testUrl + Environment.GetEnvironmentVariable("testUsersEndpoint");
 
-            var username = Environment.GetEnvironmentVariable("username");
+            var username = Environment.GetEnvironmentVariable("user");
             var password = Environment.GetEnvironmentVariable("password");
 
             var securePassword = new SecureString();

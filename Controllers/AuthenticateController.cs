@@ -11,7 +11,7 @@ using System.Text.Json.Nodes;
 
 namespace DechargeAPI.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api")]
     [ApiController]
     public class AuthenticateController
     {
@@ -256,31 +256,6 @@ namespace DechargeAPI.Controllers
                 response.EnsureSuccessStatusCode();
 
                 return new CreatedResult("", "Modification(s) effectuée(s)");
-            }
-        }
-
-        [HttpPost("UploadImage/{id}")]
-        public async Task<IActionResult> UploadImage(string digest, string filePath, string fileName, int id, IFormFile imageFile)
-        {
-            var uri = sp.users + "(" + id + ")/AttachmentFiles/ add(FileName='" + imageFile.FileName + "')";
-
-            using (var client = new HttpClient(testHandler))
-            {
-                client.DefaultRequestHeaders.Clear();
-                client.DefaultRequestHeaders.Add("X-RequestDigest", digest);
-                Console.WriteLine(imageFile.Name);
-
-                using (var multipartFormContent = new MultipartFormDataContent())
-                {
-                    var fileStream = new StreamContent(imageFile.OpenReadStream());
-                    //Add the file
-                    multipartFormContent.Add(fileStream, name: "DEPOT SCAN", fileName: imageFile.FileName);
-
-                    //Send it
-                    var response = await client.PostAsync(uri, multipartFormContent);
-                    response.EnsureSuccessStatusCode();
-                    return new CreatedResult("", "Décharge ajoutée");
-                }
             }
         }
     }

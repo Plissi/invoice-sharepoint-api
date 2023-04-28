@@ -1,4 +1,6 @@
 ﻿using DechargeAPI.Classes;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -7,8 +9,9 @@ using System.Text.Json.Nodes;
 
 namespace DechargeAPI.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api")]
     [ApiController]
+    //[Authorize(AuthenticationSchemes =JwtBearerDefaults.AuthenticationScheme)]
     public class SharePointController : ControllerBase
     {
         private HttpClientHandler handler;
@@ -21,17 +24,48 @@ namespace DechargeAPI.Controllers
         }
 
         // GET: api/<SharePointController>
-        [Route("GetFactureADecharger")]
+        [Route("FacturesADecharger")]
         [HttpGet]
-        public async Task<String> GetFactureADecharger()
+        public async Task<JsonElement> FacturesADecharger(string? url)
         {
+            if (url == null)
+            {
+                url = sp.factureADecharger;
+            }
             var json = string.Empty;
             using (var client = new HttpClient(handler))
             {
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
-                
-                var response = await client.GetAsync(sp.factureADecharger);
+
+                var response = await client.GetAsync(url);
+
+                Console.WriteLine(sp.factureADecharger);
+                response.EnsureSuccessStatusCode();
+
+                json = await response.Content.ReadAsStringAsync();
+                var doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+
+                return root;
+            }
+        }
+
+        [Route("FacturesDechargee")]
+        [HttpGet]
+        public async Task<JsonElement> FacturesDechargee(string? url)
+        {
+            if (url == null)
+            {
+                url = sp.factureDechargee;
+            }
+            var json = string.Empty;
+            using (var client = new HttpClient(handler))
+            {
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
+
+                var response = await client.GetAsync(url);
 
                 response.EnsureSuccessStatusCode();
 
@@ -39,21 +73,27 @@ namespace DechargeAPI.Controllers
                 var doc = JsonDocument.Parse(json);
                 JsonElement root = doc.RootElement;
 
-                return root.GetProperty("d").ToString(); ;
+                return root;
             }
         }
 
-        [Route("GetFactureDechargee")]
+        /*
+         [Route("PageSuivante")]
         [HttpGet]
-        public async Task<String> GetFactureDechargee()
+        public async Task<IActionResult> PageSuivante(string? nextUrl)
         {
+            if (nextUrl == null)
+            {
+                nextUrl = sp.factureADecharger;
+            }
             var json = string.Empty;
             using (var client = new HttpClient(handler))
             {
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
 
-                var response = await client.GetAsync(sp.factureDechargee);
+                var response = await client.GetAsync(nextUrl);
+                var content = await response.Content.ReadAsStringAsync();
 
                 response.EnsureSuccessStatusCode();
 
@@ -61,9 +101,10 @@ namespace DechargeAPI.Controllers
                 var doc = JsonDocument.Parse(json);
                 JsonElement root = doc.RootElement;
 
-                return root.GetProperty("d").ToString();
+                return Ok(content);
             }
         }
+         */
 
         [Route("digest")]
         [HttpPost]
@@ -86,7 +127,7 @@ namespace DechargeAPI.Controllers
             }
         }
 
-        [HttpGet("GetById/{id}")]
+        [HttpGet("FactureParId/{id}")]
         public async Task<JsonElement> GetAsync(int id)
         {
             var json = string.Empty;
@@ -102,12 +143,12 @@ namespace DechargeAPI.Controllers
                 var doc = JsonDocument.Parse(json);
                 JsonElement root = doc.RootElement;
 
-                return root.GetProperty("d");
+                return root;
             }
         }
 
-        [HttpGet("GetByCodeClient/{code}")]
-        public async Task<JsonNode> GetAsync(string code)
+        [HttpGet("FactureParCodeClient/{code}")]
+        public async Task<JsonElement> GetAsync(string code)
         {
             var json = string.Empty;
             using (var client = new HttpClient(handler))
@@ -120,28 +161,55 @@ namespace DechargeAPI.Controllers
                 //response.EnsureSuccessStatusCode();
 
                 json = await response.Content.ReadAsStringAsync();
-                var doc = JsonArray.Parse(json);
+                var doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
 
-                return doc["d"];
+                return root;
+            }
+        }
+        [HttpPost("UploadImage/{id}")]
+        public async Task<IActionResult> UploadImage(string digest, int id, IFormFile imageFile)
+        {
+            var uri = sp.users + "(" + id + ")/AttachmentFiles/ add(FileName='" + imageFile.FileName + "')";
+
+            using (var client = new HttpClient(handler))
+            {
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("X-RequestDigest", digest);
+                Console.WriteLine(imageFile.Name);
+
+                using (var multipartFormContent = new MultipartFormDataContent())
+                {
+                    var fileStream = new StreamContent(imageFile.OpenReadStream());
+                    //Add the file
+                    multipartFormContent.Add(fileStream, name: "DEPOT SCAN", fileName: imageFile.FileName);
+
+                    //Send it
+                    var response = await client.PostAsync(uri, multipartFormContent);
+                    response.EnsureSuccessStatusCode();
+                    return new CreatedResult("", "Décharge ajoutée");
+                }
             }
         }
 
-        // POST api/<SharePointController>
-        [HttpPost]
-        public void Post([FromBody] string value)
-        {
-        }
+        /*
+            // POST api/<SharePointController>
+            [HttpPost]
+            public void Post([FromBody] string value)
+            {
+            }
 
-        // PUT api/<SharePointController>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
-        {
-        }
+            // PUT api/<SharePointController>/5
+            [HttpPut("{id}")]
+            public void Put(int id, [FromBody] string value)
+            {
+            }
 
-        // DELETE api/<SharePointController>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
-        }
+            // DELETE api/<SharePointController>/5
+            [HttpDelete("{id}")]
+            public void Delete(int id)
+            {
+            }
+        */
     }
 }

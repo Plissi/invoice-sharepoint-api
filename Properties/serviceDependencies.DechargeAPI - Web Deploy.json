@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "mssql1": {
+      "ignored": "true",
+      "type": "mssql",
+      "connectionId": "ConnectionStrings:ConnStr"
+    },
+    "apis1": {
+      "apiEndpoint": "https://dechargeapi.azure-api.net/",
+      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('resourceGroupName')]/providers/Microsoft.ApiManagement/service/DechargeAPI/apis/Decharge",
+      "type": "apis.azure"
+    }
+  }
+}
