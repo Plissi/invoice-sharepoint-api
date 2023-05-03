@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -43,25 +44,36 @@ namespace DechargeAPI.Controllers
 
             if (!user.AsArray().IsNullOrEmpty() && VerifyPassword(model.Password, (string)password, salt))
             {
-                Console.WriteLine("OK");
-                var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Secret"]));
+                //Console.WriteLine("OK");
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.UTF8.GetBytes(_config["JWT:Secret"]);
+                var authSigningKey = new SymmetricSecurityKey(key);
+                var claims = new ClaimsIdentity(new Claim[]{
+                        new Claim(JwtRegisteredClaimNames.Sub, model.Username),
+                        new Claim(JwtRegisteredClaimNames.Aud, _config["Jwt:ValidAudience"]),
+                        new Claim(JwtRegisteredClaimNames.Iss, _config["Jwt:ValidIssuer"])
+                    });
 
-                var token = new JwtSecurityToken(
-                    issuer: _config["JWT:ValidIssuer"],
-                    audience: _config["JWT:ValidAudience"],
-                    expires: DateTime.Now.AddHours(3),
-                    signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
-                    );
+                var tokenDescriptor = new SecurityTokenDescriptor
+                {
+                    Subject = claims,
+                    Audience = _config["JWT:ValidAudience"],
+                    Issuer = _config["JWT:ValidIssuer"],
+                    Expires = DateTime.UtcNow.AddHours(3),
+                    SigningCredentials = new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256Signature)
+                };
+
+                var token = tokenHandler.CreateToken(tokenDescriptor);
 
                 return new OkObjectResult(new
                 {
                     status = 200,
-                    token = new JwtSecurityTokenHandler().WriteToken(token),
+                    token = tokenHandler.WriteToken(token),
                     expiration = token.ValidTo
                 });
 
             }
-            Console.WriteLine("NOTOK");
+            //Console.WriteLine("NOTOK");
             return new UnauthorizedResult();
 
         }
