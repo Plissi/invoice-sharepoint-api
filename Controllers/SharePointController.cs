@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -32,18 +33,20 @@ namespace DechargeAPI.Controllers
             {
                 url = sp.factureADecharger;
             }
-            var json = string.Empty;
+            Console.WriteLine(url);
             using (var client = new HttpClient(handler))
             {
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
+                //client.DefaultRequestHeaders.Add("Bearer", token);
+                //client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
                 var response = await client.GetAsync(url);
 
                 Console.WriteLine(sp.factureADecharger);
                 response.EnsureSuccessStatusCode();
 
-                json = await response.Content.ReadAsStringAsync();
+                string? json = await response.Content.ReadAsStringAsync();
                 var doc = JsonDocument.Parse(json);
                 JsonElement root = doc.RootElement;
 
@@ -170,25 +173,33 @@ namespace DechargeAPI.Controllers
         [HttpPost("UploadImage/{id}")]
         public async Task<IActionResult> UploadImage(string digest, int id, IFormFile imageFile)
         {
-            var uri = sp.users + "(" + id + ")/AttachmentFiles/ add(FileName='" + imageFile.FileName + "')";
+            var uri = sp.listItems + "(" + id + ")/AttachmentFiles/add(FileName='" + imageFile.FileName + "')";
 
             using (var client = new HttpClient(handler))
             {
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("X-RequestDigest", digest);
-                Console.WriteLine(imageFile.Name);
+                //client.DefaultRequestHeaders.Add("Content-Length", imageFile.Length.ToString());
 
-                using (var multipartFormContent = new MultipartFormDataContent())
-                {
-                    var fileStream = new StreamContent(imageFile.OpenReadStream());
-                    //Add the file
-                    multipartFormContent.Add(fileStream, name: "DEPOT SCAN", fileName: imageFile.FileName);
+                //client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                
+                Console.WriteLine(imageFile.FileName);
 
-                    //Send it
-                    var response = await client.PostAsync(uri, multipartFormContent);
-                    response.EnsureSuccessStatusCode();
-                    return new CreatedResult("", "Décharge ajoutée");
-                }
+                var memoryStream = new MemoryStream();
+                imageFile.CopyTo(memoryStream);
+
+                var fileStream = new StreamContent(imageFile.OpenReadStream());
+                //var fileStream = new ByteArrayContent(memoryStream.ToArray());
+                //Add the file
+                fileStream.Headers.ContentType = MediaTypeHeaderValue.Parse(imageFile.ContentType);
+                //fileStream.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
+
+                //fileStream.Headers.ContentLength = imageFile.Length;
+
+                //Send it
+                var response = await client.PostAsync(uri, fileStream);
+                response.EnsureSuccessStatusCode();
+                return new CreatedResult("", "Décharge ajoutée");
             }
         }
 
